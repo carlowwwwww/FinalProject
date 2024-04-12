@@ -14,6 +14,7 @@ plt.title('Real-time Humidity Sensor Data')
 
 
 def on_message(client, userdata, msg):
+    global dataStorage
     try:
         data = json.loads(msg.payload.decode())
     except:
@@ -26,6 +27,7 @@ def on_message(client, userdata, msg):
 
         print(f"appended {data['value']}")
     dataStorage.append(data)
+    dataStorage = dataStorage[-150:]
 
 
 def connect_mqtt():
@@ -45,11 +47,13 @@ def connect_mqtt():
 def updatePlot(frame):
     plt.clf()  # Clear previous plot
     plt.title('Real-time Humidity Sensor Data')
+    plt.ylabel('Humidity (%)')
     if dataStorage:  # Check if there's data in dataStorage
         values = [data['value'] for data in dataStorage[-100:]]
         plt.plot(movingAverage(values, 3))
-        plt.xlim(0, len(values))  # Set x-axis limit to show only the last 50 data points
-        plt.ylim((min(values) - 10, (max(values) + 10) if (max(values) + 10) <= 100 else 100))
+        plt.xlabel(f'Latest Humidity: {round(values[-1], 2)}%')
+        plt.xlim(0, len(values))
+        plt.ylim((min(values) - 10, max(values) + 10))
 
 
 # Added to make the data look smoother

@@ -40,17 +40,11 @@ class Publisher:
             # Simulate missing data 1/100 times
             isMissing = random.randint(1, 100) == 1
             if isMissing:
-                result = self.client.publish(self.topic, None)
+                self.client.publish(self.topic, None)
             else:
-                result = self.client.publish(self.topic, msg)
+                self.client.publish(self.topic, msg)
 
-            status = result[0]
-            if status == 0:
-                print(f"Sent `{msg}` to topic {self.topic}")
-            else:
-                print(f"Failed to send message to {self.topic}")
-
-            time.sleep(0.25)
+            time.sleep(0.5)
 
 
 def run():
