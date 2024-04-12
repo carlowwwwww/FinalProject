@@ -6,36 +6,33 @@ import time
 
 broker = 'localhost'
 port = 1883
-topic = "humidity"
+topic_base = "humidity/#"
 
-dataStorage = []
-plt.figure(figsize=(8, 4.5))
-plt.title('Real-time Humidity Sensor Data')
+dataStorage = {}
+
+plt.figure(figsize=(10, 6))
+plt.title('Real-time Humidity Sensor Data Across Locations')
 
 
 def on_message(client, userdata, msg):
-    global dataStorage
     try:
         data = json.loads(msg.payload.decode())
-    except:
-        # Handles missing data
-        values = [d['value'] for d in dataStorage[-5:]]
-        data = {"id": 000,
-                "device_name": f"Sensor_UNKNOWN",
-                "timestamp": time.asctime(),
-                "value": sum(values) / len(values)}
-
-        print(f"appended {data['value']}")
-    dataStorage.append(data)
-    dataStorage = dataStorage[-150:]
+        location = data['location']
+        if location not in dataStorage:
+            dataStorage[location] = []
+        dataStorage[location].append(data)
+        dataStorage[location] = dataStorage[location][-150:]
+    except Exception as e:
+        print(f"Error processing message: {e}")
 
 
 def connect_mqtt():
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print("Connected to MQTT Broker!")
+            client.subscribe(topic_base)
         else:
-            print("Failed to connect, return code %d\n", rc)
+            print(f"Failed to connect, return code {rc}\n")
 
     client = mqtt_client.Client("Subscriber")
     client.on_connect = on_connect
@@ -45,18 +42,21 @@ def connect_mqtt():
 
 
 def updatePlot(frame):
-    plt.clf()  # Clear previous plot
-    plt.title('Real-time Humidity Sensor Data')
+    plt.clf()
+    plt.title('Real-time Humidity Sensor Data Across Locations')
     plt.ylabel('Humidity (%)')
-    if dataStorage:  # Check if there's data in dataStorage
-        values = [data['value'] for data in dataStorage[-100:]]
-        plt.plot(movingAverage(values, 3))
-        plt.xlabel(f'Latest Humidity: {round(values[-1], 2)}%')
-        plt.xlim(0, len(values))
-        plt.ylim((min(values) - 10, max(values) + 10))
+    has_data = False
+    for location, records in dataStorage.items():
+        if records:
+            values = [record['value'] for record in records]
+            plt.plot(movingAverage(values, 3), label=f'{location}')
+            has_data = True
+    plt.xlabel('Time')
+    if has_data:
+        plt.legend(loc='upper left')
+    plt.ylim(30, 90)
 
 
-# Added to make the data look smoother
 def movingAverage(data, smoothing):
     smoothedData = []
     for i in range(len(data) - smoothing + 1):
@@ -67,8 +67,6 @@ def movingAverage(data, smoothing):
 
 def run():
     client = connect_mqtt()
-    client.connect(broker, port)
-    client.subscribe(topic)
     client.loop_start()
     ani = FuncAnimation(plt.gcf(), updatePlot, interval=1000, cache_frame_data=False)
     plt.show()
